@@ -28,6 +28,7 @@ class ConversationPlanner:
             "experience": None
         }
         self.fields = list(self.preferences.keys())
+        self.output_window = None
         self.setup_ui()
         self.add_to_conversation(
             "Planner",
@@ -37,7 +38,7 @@ class ConversationPlanner:
         )
 
     def setup_ui(self):
-        self.root.title("🍽️ Conversational Food Planner")
+        self.root.title("Conversational Food Planner")
         self.root.geometry("900x900")
         self.root.configure(bg="#ffffff")
 
@@ -48,7 +49,7 @@ class ConversationPlanner:
         # Header
         header = tk.Label(
             self.root,
-            text="🍽️ Conversational Food Itinerary Planner",
+            text="Food Itinerary Planner",
             font=self.heading_font,
             bg="#ffffff",
             fg="#333"
@@ -79,10 +80,12 @@ class ConversationPlanner:
         self.input_frame = tk.Frame(self.root, bg="#ffffff")
         self.input_frame.pack(pady=15, padx=20, fill=tk.X)
 
-        self.user_input = tk.Entry(
+        self.user_input = tk.Text(
             self.input_frame,
             font=self.label_font,
-            width=70,
+            width=85,
+            height=3,
+            wrap=tk.WORD,
             bg="#ffffff",
             fg="#333",
             relief=tk.FLAT,
@@ -91,7 +94,8 @@ class ConversationPlanner:
             insertbackground="#333"
         )
         self.user_input.pack(side=tk.LEFT, padx=(0, 10), ipady=6)
-        self.user_input.bind("<Return>", lambda event: self.process_answer())
+        self.user_input.bind("<Return>", self.on_enter)
+        self.user_input.bind("<Shift-Return>", lambda event: self.user_input.insert(tk.INSERT, "\n"))
 
         self.submit_btn = tk.Button(
             self.input_frame,
@@ -109,14 +113,9 @@ class ConversationPlanner:
         )
         self.submit_btn.pack(side=tk.LEFT)
 
-        # Output (HTML itinerary) display
-        self.output_frame = HtmlFrame(self.root, horizontal_scrollbar="auto")
-        self.output_frame.pack(padx=20, pady=(0, 20), fill=tk.BOTH, expand=True)
-        self.output_frame.load_html("""
-            <div style='font-family:Helvetica, sans-serif; color:#666; font-style:italic; padding:1em;'>
-                Your itinerary will appear here after the conversation...
-            </div>
-        """)
+    def on_enter(self, event):
+        self.process_answer()
+        return "break"  # prevent newline from being added
 
     def add_to_conversation(self, sender, message):
         self.conversation_text.config(state=tk.NORMAL)
@@ -125,12 +124,12 @@ class ConversationPlanner:
         self.conversation_text.see(tk.END)
 
     def process_answer(self):
-        user_input = self.user_input.get().strip()
+        user_input = self.user_input.get("1.0", tk.END).strip()
         if not user_input:
             return
 
         self.add_to_conversation("You", user_input)
-        self.user_input.delete(0, tk.END)
+        self.user_input.delete("1.0", tk.END)
 
         if not any(self.preferences.values()):
             extracted = self.extract_preferences(user_input)
@@ -199,9 +198,17 @@ class ConversationPlanner:
 
     def generate_itinerary(self):
         try:
-            self.output_frame.load_html(
-                "<p style='color:#666;font-style:italic'>Generating your itinerary... Please wait...</p>")
-            self.root.update()
+            if self.output_window is None or not self.output_window.winfo_exists():
+                self.output_window = tk.Toplevel(self.root)
+                self.output_window.title("Your Food Itinerary")
+                self.output_window.geometry("800x600")
+                self.output_window.configure(bg="white")
+
+                self.output_frame = HtmlFrame(self.output_window, horizontal_scrollbar="auto")
+                self.output_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+            self.output_frame.load_html("<p style='color:#666;font-style:italic'>Generating your itinerary... Please wait...</p>")
+            self.output_window.update()
 
             validation_error = self.validate_inputs()
             if validation_error:
