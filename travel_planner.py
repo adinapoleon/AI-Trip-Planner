@@ -1,4 +1,5 @@
 import json
+import os
 import tkinter as tk
 from tkinter import ttk, scrolledtext, messagebox
 from dotenv import load_dotenv
@@ -8,20 +9,19 @@ from langchain.schema import SystemMessage
 from langchain.chains import LLMChain
 from markdown import markdown
 from tkinterweb import HtmlFrame
-from datetime import datetime
 import re
 
 load_dotenv()
-
+google_key = os.getenv("GOOGLE_API_KEY")
 
 class StyledConversationPlanner:
     def __init__(self, root):
         self.root = root
         self.questions = [
             ("destination", "Where will you be traveling to?", "text"),
-            ("dates", "What are the dates of your trip? (MM/DD/YYYY - MM/DD/YYYY)", "date"),
+            ("dates", "What are the dates of your trip?", "date"),
             ("travelers", "How many people are traveling?", "number"),
-            ("cuisines", "What cuisines are you interested in? (Separate with commas)", "multiselect"),
+            ("cuisines", "What cuisines are you interested in?", "multiselect"),
             ("dietary_restrictions", "Any dietary restrictions or allergies?", "text"),
             ("budget", "What's your budget level?", "select", ["Budget-friendly", "Moderate", "High-end", "Luxury"]),
             ("experience", "What kind of dining experience are you looking for?", "select",
@@ -39,7 +39,7 @@ class StyledConversationPlanner:
 
         # Initialize LLM with error handling
         try:
-            self.llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0.7)
+            self.llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0.7, google_api_key=google_key)
         except Exception as e:
             messagebox.showerror("Error", f"Failed to initialize AI: {str(e)}")
             self.root.destroy()
@@ -61,7 +61,7 @@ class StyledConversationPlanner:
         header_frame.pack(fill=tk.X, padx=20, pady=(15, 5))
 
         self.logo = tk.Label(header_frame,
-                             text="🍽️ Travel Food Planner",
+                             text="Travel Food Planner",
                              font=("Helvetica", 18, "bold"),
                              fg="#2c3e50",
                              bg="#f5f7fa")
@@ -135,27 +135,14 @@ class StyledConversationPlanner:
         self.conversation_text.see(tk.END)
 
     def validate_input(self, input_text, input_type):
+        if input_type == "optional":
+            return True, ""
+
+        # For all other fields, just check if empty
         if not input_text.strip():
             return False, "Please provide an answer"
 
-        if input_type == "date":
-            try:
-                dates = [d.strip() for d in input_text.split("-")]
-                if len(dates) != 2:
-                    return False, "Please enter dates in format MM/DD/YYYY - MM/DD/YYYY"
-
-                for date_str in dates:
-                    datetime.strptime(date_str.strip(), "%m/%d/%Y")
-
-                return True, ""
-            except ValueError:
-                return False, "Invalid date format. Please use MM/DD/YYYY"
-
-        elif input_type == "number":
-            if not input_text.isdigit():
-                return False, "Please enter a valid number"
-            return True, ""
-
+        # All non-empty input is considered valid
         return True, ""
 
     def ask_next_question(self):
@@ -275,8 +262,12 @@ class StyledConversationPlanner:
                 "restaurants": restaurants
             }, indent=2)
 
-            # Process markdown to add Google Maps links
-            processed_markdown = self.add_maps_links_to_markdown(markdown_result)
+            # Writing to files for others to access
+            with open("restaurants.json", "w", encoding="utf-8") as f:
+                json.dump(restaurants, f, indent=2, ensure_ascii=False)
+
+            # Process markdown
+            processed_markdown = markdown_result
 
             # Convert to HTML and display
             html_result = self.convert_markdown_to_html(processed_markdown)
@@ -285,7 +276,8 @@ class StyledConversationPlanner:
 
             # Ask if more changes are needed
             self.add_to_conversation("Planner",
-                                     "Your itinerary has been updated. If you would like to make any changes just list them below.")
+                                     "Your itinerary has been updated.\n"
+                                     " Would you like to make any changes to the itinerary? (Type yes and list the changes below, or type n to confirm.).")
             self.user_input.delete("1.0", tk.END)
 
         except Exception as e:
@@ -309,40 +301,6 @@ class StyledConversationPlanner:
         except Exception:
             return "Could not extract original content"
 
-    def add_maps_links_to_markdown(self, markdown_text):
-        """Add Google Maps links to addresses in the markdown"""
-        processed_markdown = []
-
-        def get_google_maps_link(address):
-            if not address:
-                return ""
-            formatted_address = (
-                address.replace(", ", "+")
-                .replace(" ", "+")
-                .replace("&", "%26")
-                .replace("#", "%23")
-            )
-            return f"https://www.google.com/maps/search/?api=1&query={formatted_address}"
-
-        for line in markdown_text.split('\n'):
-            if line.startswith('### '):
-                # This is a restaurant title line
-                restaurant_name = line[4:].strip()
-                processed_markdown.append(line)
-            elif line.strip().startswith('- Address:'):
-                # This is an address line - we'll add the link in the next step
-                address = line.replace('- Address:', '').strip()
-                maps_link = get_google_maps_link(address)
-                if maps_link:
-                    # Add the link right after the restaurant name
-                    if processed_markdown and processed_markdown[-1].startswith('### '):
-                        last_line = processed_markdown[-1]
-                        processed_markdown[-1] = f"{last_line} [📍]({maps_link})"
-                processed_markdown.append(line)
-            else:
-                processed_markdown.append(line)
-
-        return '\n'.join(processed_markdown)
 
     def convert_markdown_to_html(self, markdown_text):
         """Convert markdown text to styled HTML"""
@@ -369,15 +327,27 @@ class StyledConversationPlanner:
         """
 
     def extract_restaurant_info(self, markdown_text):
-        """Extract restaurant information from markdown text and return as JSON"""
+        """Extract restaurant information from markdown text and return as JSON with Google Maps links"""
         pattern = r"###?\s*(.*?)\n.*?Address:\s*(.*?)(?:\n|$)"
         matches = re.findall(pattern, markdown_text, re.IGNORECASE | re.DOTALL)
+
+        def get_google_maps_link(address):
+            if not address:
+                return ""
+            formatted_address = (
+                address.replace(", ", "+")
+                .replace(" ", "+")
+                .replace("&", "%26")
+                .replace("#", "%23")
+            )
+            return f"https://www.google.com/maps/search/?api=1&query={formatted_address}"
 
         restaurants = []
         for name, address in matches:
             restaurants.append({
                 "name": name.strip(),
-                "address": address.strip()
+                "address": address.strip(),
+                "maps_link": get_google_maps_link(address.strip())
             })
 
         return restaurants
@@ -457,8 +427,14 @@ class StyledConversationPlanner:
                 "restaurants": restaurants
             }, indent=2)
 
-            # Process markdown to add Google Maps links
-            processed_markdown = self.add_maps_links_to_markdown(markdown_result)
+            # Writing to files for others to access
+            with open("restaurants.json", "w", encoding="utf-8") as f:
+                json.dump(restaurants, f, indent=2, ensure_ascii=False)
+
+            print(restaurants)
+
+            # Process markdown
+            processed_markdown = markdown_result
 
             # Convert to HTML and display
             html_result = self.convert_markdown_to_html(processed_markdown)
@@ -468,7 +444,7 @@ class StyledConversationPlanner:
             # Ask if user wants to make changes
             self.add_to_conversation("Planner",
                                      "Your personalized food itinerary is ready! Check the window for details.\n"
-                                     "Would you like to make any changes to the itinerary? (yes/no)")
+                                     "Would you like to make any changes to the itinerary? (Type yes and list the changes below, or type n to confirm.)")
             self.waiting_for_changes = True
 
         except Exception as e:
