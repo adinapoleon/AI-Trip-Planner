@@ -9,10 +9,21 @@ from langchain.schema import SystemMessage
 from langchain.chains import LLMChain
 from markdown import markdown
 from tkinterweb import HtmlFrame
+import webbrowser
+import requests
 import re
+import subprocess
+from pathlib import Path
+from urllib.parse import quote
 
 load_dotenv()
 google_key = os.getenv("GOOGLE_API_KEY")
+
+def run_tripadvisor_gui():
+    import subprocess
+    subprocess.Popen(r'"C:\Users\adi22\Desktop\AI Project\.venv\Scripts\python.exe" "C:\Users\adi22\Desktop\AI Project\tripadvisor.py"', shell=True)
+
+
 
 class StyledConversationPlanner:
     def __init__(self, root):
@@ -45,8 +56,8 @@ class StyledConversationPlanner:
             self.root.destroy()
 
     def setup_ui(self):
-        self.root.title("🍽️ Travel Food Planner AI")
-        self.root.geometry("1000x800")
+        self.root.title("Travel Food Planner AI")
+        self.root.geometry("1000x800+0+0")
         self.root.configure(bg="#f5f7fa")
         self.root.minsize(800, 600)
 
@@ -266,6 +277,8 @@ class StyledConversationPlanner:
             with open("restaurants.json", "w", encoding="utf-8") as f:
                 json.dump(restaurants, f, indent=2, ensure_ascii=False)
 
+            run_tripadvisor_gui()
+
             # Process markdown
             processed_markdown = markdown_result
 
@@ -357,7 +370,7 @@ class StyledConversationPlanner:
             if self.output_window is None or not self.output_window.winfo_exists():
                 self.output_window = tk.Toplevel(self.root)
                 self.output_window.title(f"Food Itinerary for {self.answers.get('destination', 'Your Trip')}")
-                self.output_window.geometry("900x700")
+                self.output_window.geometry("900x700+1000+0")
                 self.output_window.configure(bg="#f5f7fa")
 
                 # Add output frame
@@ -431,7 +444,7 @@ class StyledConversationPlanner:
             with open("restaurants.json", "w", encoding="utf-8") as f:
                 json.dump(restaurants, f, indent=2, ensure_ascii=False)
 
-            print(restaurants)
+            run_tripadvisor_gui()
 
             # Process markdown
             processed_markdown = markdown_result
@@ -446,6 +459,8 @@ class StyledConversationPlanner:
                                      "Your personalized food itinerary is ready! Check the window for details.\n"
                                      "Would you like to make any changes to the itinerary? (Type yes and list the changes below, or type n to confirm.)")
             self.waiting_for_changes = True
+
+
 
         except Exception as e:
             self.add_to_conversation("Planner", f"Sorry, I encountered an error generating your itinerary: {str(e)}",

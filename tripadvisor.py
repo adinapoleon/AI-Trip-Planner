@@ -11,9 +11,21 @@ from urllib.parse import quote
 
 load_dotenv()
 
-def clean_address(address):
-    """Remove parentheses and their contents from addresses"""
-    return re.sub(r'\([^)]*\)', '', address).strip()
+# Custom style configuration
+def configure_styles():
+    style = ttk.Style()
+    style.theme_use('clam')
+
+    # Color scheme and font updates
+    style.configure('TFrame', background="#ffffff")
+    style.configure('TLabel', background="#ffffff", font=('Segoe UI', 11))
+    style.configure('Header.TLabel', background="#ffffff", font=('Segoe UI', 18, 'bold'), foreground="#0077b6")
+    style.configure('Restaurant.TLabel', font=('Segoe UI', 13, 'bold'), foreground="#028c76")
+    style.configure('Address.TLabel', font=('Segoe UI', 10))
+    style.configure('Review.TLabel', font=('Segoe UI', 10), wraplength=600, justify='left')
+    style.configure('Link.TLabel', font=('Segoe UI', 11, 'underline'), foreground='#0077b6', cursor='hand2')
+    style.configure('TButton', font=('Segoe UI', 11), padding=6)
+
 
 def extract_places(data):
     """Process raw JSON data according to extraction rules"""
@@ -25,19 +37,32 @@ def extract_places(data):
 
         name = place["name"]
 
-        if name.startswith("#"):
+        if name.startswith("#") or name.startswith("Lunch") or name.startswith("Dinner"):
             extracted.append({
                 "name": name.split(": ", 1)[1].strip(),
                 "address": place["address"],
                 "maps_link": place["maps_link"]
             })
 
-        elif name.startswith("Day") and " - " in name:
+        elif name.startswith("Day"):
+            if len(name) > 30:
+                # Split by either " - " or " : " and take the second part
+                split_parts = name.split(" - ", 1) if " - " in name else name.split(": ", 1)
+                extracted.append({
+                    "name": split_parts[1].strip() if len(split_parts) > 1 else name,  # Fallback to original if split fails
+                    "address": place["address"],
+                    "maps_link": place["maps_link"]
+                })
+            else:
+                continue
+
+        else:
             extracted.append({
-                "name": name.split(" - ", 1)[1].strip(),
+                "name": name,
                 "address": place["address"],
                 "maps_link": place["maps_link"]
             })
+
     return extracted
 
 
@@ -53,155 +78,156 @@ def load_restaurants():
 
 
 places = load_restaurants()
-
 API_KEY = os.getenv("TRIP_ADVISOR_API_KEY")
 
 
-def get_location_id(name, address):
-    if not API_KEY:
-        return None
+class RestaurantReviewApp:
+    def __init__(self, root):
+        self.root = root
+        self.setup_ui()
+        configure_styles()
 
-    def try_search(query, address=None):
-        search_query = quote(query.lower())
-        url = (f"https://api.content.tripadvisor.com/api/v1/location/search"
-               f"?key={API_KEY}"
-               f"&searchQuery={search_query}"
-               f"&category=restaurant"
-               f"&language=en")
+    def setup_ui(self):
+        self.root.title("🍽️ Restaurant Reviews")
+        self.root.geometry("800x700+100+300")
+        self.root.configure(bg="#ffffff")
+        self.root.minsize(800, 600)
 
-        if address:
-            address_query = quote(address)
-            url += f"&address={address_query}"
+        header_frame = ttk.Frame(self.root)
+        header_frame.pack(fill=tk.X, padx=20, pady=(15, 10))
+
+        ttk.Label(
+            header_frame,
+            text="Houston Food Itinerary: May 18th - May 21st",
+            style='Header.TLabel'
+        ).pack(side=tk.LEFT)
+
+        main_frame = ttk.Frame(self.root)
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=5)
+
+        canvas = tk.Canvas(main_frame, bg="#ffffff", highlightthickness=0)
+        scrollbar = ttk.Scrollbar(main_frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        for place in places:
+            self.create_restaurant_card(scrollable_frame, place)
+
+    def create_restaurant_card(self, parent, place):
+        card_frame = ttk.Frame(parent, relief=tk.RIDGE, borderwidth=1, padding=15)
+        card_frame.pack(fill=tk.X, pady=10, padx=5, expand=True)
+
+        name_label = ttk.Label(
+            card_frame,
+            text=place["name"],
+            style='Restaurant.TLabel'
+        )
+        name_label.pack(anchor="w", fill=tk.X)
+        name_label.bind("<Button-1>", lambda e: webbrowser.open(place["maps_link"]))
+
+        ttk.Label(
+            card_frame,
+            text=f"📍 {place['address']}",
+            style='Address.TLabel'
+        ).pack(anchor="w", pady=(5, 0), fill=tk.X)
+
+        reviews = self.get_reviews(place["name"], place["address"])
+        if reviews:
+            review_frame = ttk.Frame(card_frame)
+            review_frame.pack(fill=tk.X, pady=(10, 0), expand=True)
+
+            ttk.Label(
+                review_frame,
+                text="Top Reviews:",
+                style='Restaurant.TLabel'
+            ).pack(anchor="w", fill=tk.X)
+
+            for review in reviews:
+                ttk.Label(
+                    review_frame,
+                    text=review,
+                    style='Review.TLabel'
+                ).pack(anchor="w", padx=10, pady=2, fill=tk.X)
+        else:
+            ttk.Label(
+                card_frame,
+                text="No reviews found",
+                style='Address.TLabel',
+                foreground='gray'
+            ).pack(anchor="w", pady=(10, 0), fill=tk.X)
+
+    def get_location_id(self, name, address):
+        if not API_KEY:
+            return None
+
+        def try_search(query, address=None):
+            search_query = quote(query.lower())
+            url = (f"https://api.content.tripadvisor.com/api/v1/location/search"
+                   f"?key={API_KEY}"
+                   f"&searchQuery={search_query}"
+                   f"&category=restaurant"
+                   f"&language=en")
+
+            if address:
+                url += f"&address={quote(address)}"
+
+            try:
+                response = requests.get(url, timeout=10)
+                response.raise_for_status()
+                data = response.json()
+                if data and "data" in data and len(data["data"]) > 0:
+                    return data["data"][0]["location_id"]
+            except (requests.RequestException, ValueError, KeyError) as e:
+                print(f"Search error: {e}")
+            return None
+
+        location_id = try_search(name, address)
+        if not location_id:
+            print(f"No results with address, trying without address for {name}...")
+            location_id = try_search(name)
+
+        return location_id
+
+    def get_reviews(self, name, address):
+        if not API_KEY:
+            return []
+
+        location_id = self.get_location_id(name, address)
+        if not location_id:
+            return []
+
+        url = (f"https://api.content.tripadvisor.com/api/v1/location/{location_id}/reviews"
+               f"?key={API_KEY}&language=en")
 
         try:
             response = requests.get(url, timeout=10)
             response.raise_for_status()
             data = response.json()
+            reviews = []
 
-            if data and "data" in data and len(data["data"]) > 0:
-                return data["data"][0]["location_id"]
+            if "data" in data:
+                for review in data["data"][:3]:
+                    text = review.get("text", "").strip()
+                    if text:
+                        rating = review.get("rating", "?")
+                        reviews.append(f"⭐ {rating}/5 - {text}")
+            return reviews
         except (requests.RequestException, ValueError, KeyError) as e:
-            print(f"Search error: {e}")
-        return None
+            print(f"Error fetching reviews for location {location_id}: {e}")
+            return []
 
-    # First try with both name and address
-    location_id = try_search(name, address)
-
-    # If not found, try with just the name
-    if not location_id:
-        print(f"No results with address, trying without address for {name}...")
-        location_id = try_search(name)
-
-    return location_id
-
-
-def get_reviews(location_id):
-    if not API_KEY or not location_id:
-        return []
-
-    url = (f"https://api.content.tripadvisor.com/api/v1/location/{location_id}/reviews"
-           f"?key={API_KEY}"
-           f"&language=en")
-
-    try:
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()
-        data = response.json()
-        reviews = []
-
-        if "data" in data:
-            for review in data["data"][:3]:  # Top 3 reviews
-                text = review.get("text", "").strip()
-                if text:
-                    rating = review.get("rating", "?")
-                    reviews.append(f"⭐ {rating}/5 - {text}")
-        return reviews
-
-    except (requests.RequestException, ValueError, KeyError) as e:
-        print(f"Error fetching reviews for location {location_id}: {e}")
-        return []
-
-
-def open_link(url):
-    webbrowser.open_new(url)
-
-
-def display_reviews(root, place):
-    frame = ttk.Frame(root)
-    frame.pack(padx=10, pady=10, anchor="w", fill="x")
-
-    # Hyperlinked name
-    link = tk.Label(
-        frame,
-        text=place["name"],
-        foreground="blue",
-        cursor="hand2",
-        font=("Arial", 12, "underline")
-    )
-    link.pack(anchor="w")
-    link.bind("<Button-1>", lambda e: open_link(place["maps_link"]))
-
-    # Display address
-    address_label = tk.Label(frame, text=f"Address: {place['address']}")
-    address_label.pack(anchor="w")
-
-    # Fetch and display reviews
-    reviews = []
-    location_id = get_location_id(place["name"], place["address"])
-    if location_id:
-        reviews = get_reviews(location_id)
-
-    if reviews:
-        review_frame = ttk.Frame(frame)
-        review_frame.pack(anchor="w", pady=(5, 0))
-
-        tk.Label(review_frame, text="Top Reviews:", font=("Arial", 10, "bold")).pack(anchor="w")
-        for review in reviews:
-            tk.Label(
-                review_frame,
-                text=review,
-                wraplength=600,
-                justify="left"
-            ).pack(anchor="w", padx=10)
-    else:
-        tk.Label(
-            frame,
-            text="No reviews found or API not configured.",
-            fg="gray"
-        ).pack(anchor="w")
-
-
-def main():
-    root = tk.Tk()
-    root.title("TripAdvisor Food Itinerary Reviews")
-
-    if not API_KEY:
-        tk.Label(
-            root,
-            text="Warning: TRIP_ADVISOR_API_KEY not found in .env file",
-            fg="red"
-        ).pack(pady=10)
-
-    # Create scrollable canvas
-    canvas = tk.Canvas(root)
-    scroll_y = ttk.Scrollbar(root, orient="vertical", command=canvas.yview)
-
-    scroll_frame = ttk.Frame(canvas)
-    canvas.create_window((0, 0), window=scroll_frame, anchor="nw")
-    canvas.configure(yscrollcommand=scroll_y.set)
-
-    # Populate reviews for all extracted places
-    for place in places:
-        display_reviews(scroll_frame, place)
-
-    scroll_frame.bind(
-        "<Configure>",
-        lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
-
-    canvas.pack(side="left", fill="both", expand=True)
-    scroll_y.pack(side="right", fill="y")
-
-    root.mainloop()
 
 if __name__ == "__main__":
-    main()
+    root = tk.Tk()
+    app = RestaurantReviewApp(root)
+    root.mainloop()
