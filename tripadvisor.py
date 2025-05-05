@@ -98,7 +98,7 @@ class RestaurantReviewApp:
 
         ttk.Label(
             header_frame,
-            text="Houston Food Itinerary: May 18th - May 21st",
+            text="Review List",
             style='Header.TLabel'
         ).pack(side=tk.LEFT)
 

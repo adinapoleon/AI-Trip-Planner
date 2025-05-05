@@ -277,8 +277,6 @@ class StyledConversationPlanner:
             with open("restaurants.json", "w", encoding="utf-8") as f:
                 json.dump(restaurants, f, indent=2, ensure_ascii=False)
 
-            run_tripadvisor_gui()
-
             # Process markdown
             processed_markdown = markdown_result
 
