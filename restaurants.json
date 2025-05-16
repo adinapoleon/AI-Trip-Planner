@@ -1,0 +1,57 @@
+[
+  {
+    "name": "Vancouver Vegan Fine Dining Itinerary: May 12 - May 15",
+    "address": "1509 West 12th Avenue, Vancouver, BC V6J 2E2",
+    "maps_link": "https://www.google.com/maps/search/?api=1&query=1509+West+12th+Avenue+Vancouver+BC+V6J+2E2"
+  },
+  {
+    "name": "Lunch: MeeT on Main",
+    "address": "4288 Main St, Vancouver, BC V5V 3P9",
+    "maps_link": "https://www.google.com/maps/search/?api=1&query=4288+Main+St+Vancouver+BC+V5V+3P9"
+  },
+  {
+    "name": "Dinner: The Acorn",
+    "address": "399 Main St, Vancouver, BC V6A 2T7",
+    "maps_link": "https://www.google.com/maps/search/?api=1&query=399+Main+St+Vancouver+BC+V6A+2T7"
+  },
+  {
+    "name": "Day 2: May 13 - Gastown and Granville Island Exploration",
+    "address": "4298 Main St, Vancouver, BC V5V 3P9",
+    "maps_link": "https://www.google.com/maps/search/?api=1&query=4298+Main+St+Vancouver+BC+V5V+3P9"
+  },
+  {
+    "name": "Lunch: Edible Canada (on Granville Island)",
+    "address": "1596 Johnston St, Vancouver, BC V6H 3R9",
+    "maps_link": "https://www.google.com/maps/search/?api=1&query=1596+Johnston+St+Vancouver+BC+V6H+3R9"
+  },
+  {
+    "name": "Dinner: Wildebeest",
+    "address": "120 W Hastings St, Vancouver, BC V6B 1G8",
+    "maps_link": "https://www.google.com/maps/search/?api=1&query=120+W+Hastings+St+Vancouver+BC+V6B+1G8"
+  },
+  {
+    "name": "Day 3: May 14 - Stanley Park and Kitsilano",
+    "address": "583 Main St, Vancouver, BC V6A 2V1",
+    "maps_link": "https://www.google.com/maps/search/?api=1&query=583+Main+St+Vancouver+BC+V6A+2V1"
+  },
+  {
+    "name": "Lunch: Nuba (Kitsilano location)",
+    "address": "3116 W Broadway, Vancouver, BC V6K 2H1",
+    "maps_link": "https://www.google.com/maps/search/?api=1&query=3116+W+Broadway+Vancouver+BC+V6K+2H1"
+  },
+  {
+    "name": "Dinner: AnnaLena",
+    "address": "1808 W 1st Ave, Vancouver, BC V6J 1G5",
+    "maps_link": "https://www.google.com/maps/search/?api=1&query=1808+W+1st+Ave+Vancouver+BC+V6J+1G5"
+  },
+  {
+    "name": "Day 4: May 15 - Departure",
+    "address": "Multiple locations",
+    "maps_link": "https://www.google.com/maps/search/?api=1&query=Multiple+locations"
+  },
+  {
+    "name": "Lunch: Planta",
+    "address": "830 Burrard Street, Vancouver, BC V6Z 0J1",
+    "maps_link": "https://www.google.com/maps/search/?api=1&query=830+Burrard+Street+Vancouver+BC+V6Z+0J1"
+  }
+]
